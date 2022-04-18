@@ -11,6 +11,8 @@ local.properties
 .loadpath
 .recommenders
 
+spark_graphs_II_DONE
+
 # External tool builders
 .externalToolBuilders/
 
