@@ -22,18 +22,40 @@ import java.util.List;
 import java.util.Map;
 
 public class Exercise_2 {
-
+    // Here we will override the function called "apply" that is part of VProg. Everything inside the {} after the parameters will be
+    // what apply is replace with.
     private static class VProg extends AbstractFunction3<Long,Integer,Integer,Integer> implements Serializable {
         @Override
         public Integer apply(Long vertexID, Integer vertexValue, Integer message) {
-            return null;
+            // This is the comparison that needs to happen at each vertex.
+            // we will compare the vertex to the incoming message and return either
+            // the current vertex value OR the incoming message. We are essentially
+            // replacing the current vertex value with a new one.
+            return Math.min(vertexValue, message);
         }
     }
 
     private static class sendMsg extends AbstractFunction1<EdgeTriplet<Integer,Integer>, Iterator<Tuple2<Object,Integer>>> implements Serializable {
         @Override
+        // The triplet has values of ((SourceVertexID, SourceVertexValue), (DstVertexID, DstVertexValue), (EdgeValue))
+        // So here I apply the function EdgeTriplet and the result will be an iterable? Tuple
         public Iterator<Tuple2<Object, Integer>> apply(EdgeTriplet<Integer, Integer> triplet) {
-            return null;
+            Tuple2<Object,Integer> sourceVertex = triplet.toTuple()._1();
+            Tuple2<Object,Integer> dstVertex = triplet.toTuple()._2();
+
+            System.out.println("This is triplet: " + triplet);
+            System.out.println("This is sourceVertex: " + sourceVertex);
+            System.out.println("This is dstVertex: " + dstVertex);
+
+            if (sourceVertex._2 <= dstVertex._2) {   // source vertex value is smaller than dst vertex?
+                // do nothing
+                System.out.println("This is IF part of sendMsg");
+                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
+            } else {
+                // propagate source vertex value
+                System.out.println("This is ELSE part of sendMsg");
+                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2)).iterator()).asScala();
+            }
         }
     }
 
@@ -71,15 +93,31 @@ public class Exercise_2 {
                 new Edge<Integer>(5l, 4l, 4), // E --> D (4)
                 new Edge<Integer>(4l, 6l, 11) // D --> F (11)
         );
-
+        // Creating object called verticesRDD of type JavaRDD with a parameter Tuple2.
+        // JavaRDD creates a distributed collection of objects, which means they can be
+        // parallelized acroos a cluster of nodes. The ctx.parallelize creates a
+        // parallelized version of the java object?
+        // Tuple2 is an object that contains a fixed number (2) of elements. So here we
+        // have a tuple containing an object in position _1 and an integer in position _2.
         JavaRDD<Tuple2<Object,Integer>> verticesRDD = ctx.parallelize(vertices);
         JavaRDD<Edge<Integer>> edgesRDD = ctx.parallelize(edges);
 
+        // Here we create an object "G" of type Graph. The Graph class looks like Graph[VD,ED], and here we are saying that the
+        // VD (vertexes) and ED (edges) will both be of type integer. The angle brackets are used to pass a parameter as a
+        // generic (type, function?).
+        // TODO: So why can't we just say Graph G = Graph.apply(...)?
+        // TODO: Why do I need to use the .apply() function? Why isn't it Graph G = new Graph(parameters...)?
+        // Anyway, now we have G, a Graph with vertexes and edges that are parallelized.
         Graph<Integer,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),1, StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
                 scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
+        // GraphOps is an extension of Graphs, and it includes two additional class tags. From documentation:
+        // "ClassTag[T] stores the erased class of a given type T , accessible via the runtimeClass field.
+        // This is particularly useful for instantiating Array s whose element types are unknown at compile time."
+        // TODO: What is a class tag?
         GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
+        // Now we call pregel (function?) and pass all of our needed parameters to get it running.
         ops.pregel(Integer.MAX_VALUE,
                 Integer.MAX_VALUE,
                 EdgeDirection.Out(),
@@ -89,8 +127,8 @@ public class Exercise_2 {
                 ClassTag$.MODULE$.apply(Integer.class))
             .vertices()
             .toJavaRDD()
-            .foreach(v -> {
-                Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;
+            .foreach(v -> {                                                 // is "v" a random variable we just defined here?
+                Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;  // now we create a variable "vertex" from each v?
                 System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+vertex._2);
             });
 	}
