@@ -31,6 +31,7 @@ public class Exercise_2 {
             // we will compare the vertex to the incoming message and return either
             // the current vertex value OR the incoming message. We are essentially
             // replacing the current vertex value with a new one.
+            System.out.println("1. VProg: vertexID: " + vertexID + ". vertexValue: " + vertexValue + ". message: " + message);
             return Math.min(vertexValue, message);
         }
     }
@@ -38,31 +39,49 @@ public class Exercise_2 {
     private static class sendMsg extends AbstractFunction1<EdgeTriplet<Integer,Integer>, Iterator<Tuple2<Object,Integer>>> implements Serializable {
         @Override
         // The triplet has values of ((SourceVertexID, SourceVertexValue), (DstVertexID, DstVertexValue), (EdgeValue))
-        // So here I apply the function EdgeTriplet and the result will be an iterable? Tuple
+        // So here I apply the function EdgeTriplet and the result will be an iterable Tuple that contains the vertexID
+        // that needs to be updated along with the new value.
+        // Compare the attr (edgeValue) to the vertex value. If the sum of triplet._2 (source vertexValue) + attr (edgeValue)
+        // is less than triplet._2 (dest vertexValue), then we will send a message to update the vertex value with the new sum.
+        // otherwise, return (empty array)?
         public Iterator<Tuple2<Object, Integer>> apply(EdgeTriplet<Integer, Integer> triplet) {
             Tuple2<Object,Integer> sourceVertex = triplet.toTuple()._1();
             Tuple2<Object,Integer> dstVertex = triplet.toTuple()._2();
+            Integer edgeDistance = triplet.toTuple()._3();
 
-            System.out.println("This is triplet: " + triplet);
-            System.out.println("This is sourceVertex: " + sourceVertex);
-            System.out.println("This is dstVertex: " + dstVertex);
-
-            if (sourceVertex._2 <= dstVertex._2) {   // source vertex value is smaller than dst vertex?
-                // do nothing
-                System.out.println("This is IF part of sendMsg");
+            // this if statement required, otherwise the MAX_VALUE is increased by edge distance and becomes negative.
+            if  (sourceVertex._2 == Integer.MAX_VALUE) {
                 return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
+            }
+
+            else if (sourceVertex._2 + edgeDistance <= dstVertex._2) {    // sourceVertex + edge distance less than dstVertex?
+                System.out.println("2. sendMsg IF: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
+                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)));
+                System.out.println("");
+                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)).iterator()).asScala();
+
             } else {
-                // propagate source vertex value
-                System.out.println("This is ELSE part of sendMsg");
-                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2)).iterator()).asScala();
+                // do nothing
+                System.out.println("2. sendMsg ELSE: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
+                System.out.println("2. Return array: " + new ArrayList<Tuple2<Object,Integer>>());
+                System.out.println("");
+                // why do I need to return an empty array? Is this so that the Iterator can continue "moving" through my object?
+                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
+
             }
         }
     }
 
     private static class merge extends AbstractFunction2<Integer,Integer,Integer> implements Serializable {
         @Override
+        // if we are only taking in or comparing 2 integers, does this limit us to a graph that has a maximum of
+        // 2 incoming edges at any node? Or can we only use 2 because this is called/ used by Pregel API
+        // after every edge is compared using sendMsg?
         public Integer apply(Integer o, Integer o2) {
-            return null;
+            // if a vertex receives 2 messages, it will choose the smallest of the 2 values.
+            System.out.println("3. merge: o" + o + ". o2: " + o2 + ". return: " + Math.min(o, o2));
+            System.out.println("");
+            return Math.min(o, o2);
         }
     }
 
