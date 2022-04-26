@@ -43,34 +43,33 @@ public class Exercise_3  {
         }
     }
 
-    private static class sendMsg extends AbstractFunction1<EdgeTriplet<Integer,Integer>, Iterator<Tuple2<Object,Integer>>> implements Serializable {
+    private static class sendMsg extends AbstractFunction1<EdgeTriplet<Tuple2<Integer,List<Object>>,Integer>, Iterator<Tuple2<Object,Tuple2<Integer,List<Object>>>>> implements Serializable {
         @Override
         // The triplet has values of ((SourceVertexID, (SourceVertexValue, SourceVertexPath)), (DstVertexID, (DstVertexValue, DstVertexPath), (EdgeValue))
         // So here I override the function apply and the result will be an iterable Tuple2 that contains the vertexID
         // scala.Function1 is expecting a different return, so this isn't working?
-        public Iterator<Tuple2<Object,Tuple2<Integer,List<Object>>>> apply(EdgeTriplet<Integer, Integer> triplet) {
+        public Iterator<Tuple2<Object,Tuple2<Integer,List<Object>>>> apply(EdgeTriplet<Tuple2<Integer,List<Object>>, Integer> triplet) {
             // to make things more readable, I define all the variables. But I would love to call with just a
             // variable._1._2 type of thing if it's possible.
-            Tuple2<Object,Integer> sourceVertex = triplet.toTuple()._1();
-            Object vertexCurrentDistance = sourceVertex._1;
-            Tuple2 sourceVertexDistPath = sourceVertex._2;
-            Integer sourceVertexCurrentDistance = sourceVertexDistPath._1;
-            ArrayList sourceVertexShortestPath = sourceVertexDistPath._2;
+            Tuple2<Object,Tuple2<Integer,List<Object>>> sourceVertex = triplet.toTuple()._1();
+            Integer vertexCurrentDistance = sourceVertex._2._1;
+            Integer sourceVertexCurrentDistance = sourceVertex._2._1;
+            List sourceVertexShortestPath = sourceVertex._2._2;
 
-            Tuple2<Object,Integer> dstVertex = triplet.toTuple()._2();
-            Tuple2 dstVertexDistPath = dstVertex._2;
-            ArrayList dstVertexShortestPath = dstVertexDistPath._2;
+            Tuple2<Object,Tuple2<Integer,List<Object>>> dstVertex = triplet.toTuple()._2();
+            List dstVertexShortestPath = dstVertex._2._2;
+            Integer dstVertexCurrentDistance = dstVertex._2._1;
 
             Integer edgeDistance = triplet.toTuple()._3();
 
             // this if statement required, otherwise the MAX_VALUE is increased by edge distance and becomes negative.
-            if  (sourceVertex._2 == Integer.MAX_VALUE) {
-                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
+            if  (vertexCurrentDistance == Integer.MAX_VALUE) {
+                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Tuple2<Integer,List<Object>>>>().iterator()).asScala();
             }
 
-            else if (sourceVertexCurrentDistance + edgeDistance <= dstVertex._2) {    // sourceVertex + edge distance less than dstVertex?
+            else if (sourceVertexCurrentDistance + edgeDistance <= dstVertexCurrentDistance) {    // sourceVertex + edge distance less than dstVertex?
                 System.out.println("2. sendMsg IF: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
-                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)));
+                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Tuple2<Integer,List<Object>>>(triplet.dstId(), new Tuple2<Integer,List<Object>>(sourceVertexCurrentDistance + edgeDistance, Lists.newArrayList(Collections.addAll(sourceVertexShortestPath, triplet.dstId()))))));
                 System.out.println("");
 
                 // here we are returning a new vertex object with all new values.
@@ -82,10 +81,10 @@ public class Exercise_3  {
             } else {
                 // do nothing
                 System.out.println("2. sendMsg ELSE: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
-                System.out.println("2. Return array: " + new ArrayList<Tuple2<Object,Integer>>());
+                System.out.println("2. Return array: " + new ArrayList<Tuple2<Object,Tuple2<Integer,List<Object>>>>());
                 System.out.println("");
                 // why do I need to return an empty array? Is this so that the Iterator can continue "moving" through my object?
-                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
+                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Tuple2<Integer,List<Object>>>>().iterator()).asScala();
 
             }
         }
@@ -152,8 +151,8 @@ public class Exercise_3  {
         // TODO: So why can't we just say Graph G = Graph.apply(...)?
         // TODO: Why do I need to use the .apply() function? Why isn't it Graph G = new Graph(parameters...)?
         // Anyway, now we have G, a Graph with vertexes and edges that are parallelized.
-        Graph<Integer,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),1, StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
-                scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
+        Graph<Tuple2<Object,Tuple2<Integer,List<Object>>>,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),1, StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
+                scala.reflect.ClassTag$.MODULE$.apply(Tuple2<Object,Tuple2<Integer,List<Object>>>.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
         // GraphOps is an extension of Graphs, and it includes two additional class tags. From documentation:
         // "ClassTag[T] stores the erased class of a given type T , accessible via the runtimeClass field.
