@@ -31,15 +31,20 @@ public class Exercise_3  {
 
     // Here we will override the function called "apply" that is part of VProg. Everything inside the {} after the parameters will be
     // what apply is replace with.
-    private static class VProg extends AbstractFunction3<Long,Integer,Integer,Integer> implements Serializable {
+    private static class VProg extends AbstractFunction3<Long,Tuple2<Integer,List<Object>>,Tuple2<Integer,List<Object>>,Tuple2<Integer,List<Object>>> implements Serializable {
         @Override
-        public Integer apply(Long vertexID, Integer vertexValue, Integer message) {
+        public Tuple2<Integer,List<Object>> apply(Long vertexID, Tuple2<Integer,List<Object>> vertexValue, Tuple2<Integer,List<Object>> message) {
             // This is the comparison that needs to happen at each vertex.
             // we will compare the vertex to the incoming message and return either
             // the current vertex value OR the incoming message. We are essentially
             // replacing the current vertex value with a new one.
-            System.out.println("1. VProg: vertexID: " + vertexID + ". vertexValue: " + vertexValue + ". message: " + message);
-            return Math.min(vertexValue, message);
+            System.out.println("1. VProg: vertexID: " + vertexID + ". vertexValue: " + vertexValue._1 + ". message: " + message._1);
+            if (vertexValue._1 <= message._1) {
+                return vertexValue;
+            }
+            else {
+                return message;
+            }
         }
     }
 
@@ -52,7 +57,6 @@ public class Exercise_3  {
             // to make things more readable, I define all the variables. But I would love to call with just a
             // variable._1._2 type of thing if it's possible.
             Tuple2<Object,Tuple2<Integer,List<Object>>> sourceVertex = triplet.toTuple()._1();
-            Integer vertexCurrentDistance = sourceVertex._2._1;
             Integer sourceVertexCurrentDistance = sourceVertex._2._1;
             List sourceVertexShortestPath = sourceVertex._2._2;
 
@@ -63,20 +67,25 @@ public class Exercise_3  {
             Integer edgeDistance = triplet.toTuple()._3();
 
             // this if statement required, otherwise the MAX_VALUE is increased by edge distance and becomes negative.
-            if  (vertexCurrentDistance == Integer.MAX_VALUE) {
+            if  (sourceVertexCurrentDistance == Integer.MAX_VALUE) {
                 return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Tuple2<Integer,List<Object>>>>().iterator()).asScala();
             }
 
             else if (sourceVertexCurrentDistance + edgeDistance <= dstVertexCurrentDistance) {    // sourceVertex + edge distance less than dstVertex?
-                System.out.println("2. sendMsg IF: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
-                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Tuple2<Integer,List<Object>>>(triplet.dstId(), new Tuple2<Integer,List<Object>>(sourceVertexCurrentDistance + edgeDistance, Lists.newArrayList(Collections.addAll(sourceVertexShortestPath, triplet.dstId()))))));
+                List<Object> shortestPath = sourceVertexShortestPath;
+                shortestPath.add(Long.parseLong(String.valueOf(dstVertex._1)));
+                System.out.println("2. sendMsg IF: srcDist (" + sourceVertex._2 + ") + edgeDist (" + edgeDistance + ") <= dstDist (" + dstVertex._2 + ")");
+                System.out.println("2. sendMsg IF: shortestPath" + Collections.addAll(sourceVertexShortestPath, triplet.dstId()));
+                System.out.println("2. Shortest Path: " + shortestPath);
+
                 System.out.println("");
 
                 // here we are returning a new vertex object with all new values.
                 // we use Collections.addAll to combine the shortest path from the sourceVertex with the dstVertex Id
                 // this will create an array showing the shortest path to the dstVertex
                 // CHECK: need to add something to merge in case there are 2 incoming messages...
-                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Tuple2<Integer,List<Object>>>(triplet.dstId(), new Tuple2<Integer,List<Object>>(sourceVertexCurrentDistance + edgeDistance, Lists.newArrayList(Collections.addAll(sourceVertexShortestPath, triplet.dstId()))))).iterator()).asScala();
+
+                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Tuple2<Integer,List<Object>>>(triplet.dstId(), new Tuple2<Integer,List<Object>>(sourceVertexCurrentDistance + edgeDistance, shortestPath))).iterator()).asScala();
 
             } else {
                 // do nothing
@@ -90,16 +99,22 @@ public class Exercise_3  {
         }
     }
 
-    private static class merge extends AbstractFunction2<Integer,Integer,Integer> implements Serializable {
+    private static class merge extends AbstractFunction2<Tuple2<Integer,List<Object>>,Tuple2<Integer,List<Object>>,Tuple2<Integer,List<Object>>> implements Serializable {
         @Override
         // if we are only taking in or comparing 2 integers, does this limit us to a graph that has a maximum of
         // 2 incoming edges at any node? Or can we only use 2 because this is called/ used by Pregel API
         // after every edge is compared using sendMsg?
-        public Integer apply(Integer o, Integer o2) {
+        public Tuple2<Integer, List<Object>> apply(Tuple2<Integer, List<Object>> o, Tuple2<Integer, List<Object>> o2) {
             // if a vertex receives 2 messages, it will choose the smallest of the 2 values.
-            System.out.println("3. merge: o" + o + ". o2: " + o2 + ". return: " + Math.min(o, o2));
-            System.out.println("");
-            return Math.min(o, o2);
+//            System.out.println("3. merge: o" + o + ". o2: " + o2 + ". return: " + Math.min(o._1, o2._1));
+//            System.out.println("");
+            System.out.println("MERGE!");
+            if (o._1 <= o2._1) {
+                return o;
+            }
+            else {
+                return o2;
+            }
         }
     }
 
@@ -151,30 +166,31 @@ public class Exercise_3  {
         // TODO: So why can't we just say Graph G = Graph.apply(...)?
         // TODO: Why do I need to use the .apply() function? Why isn't it Graph G = new Graph(parameters...)?
         // Anyway, now we have G, a Graph with vertexes and edges that are parallelized.
-        Graph<Tuple2<Object,Tuple2<Integer,List<Object>>>,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),1, StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
-                scala.reflect.ClassTag$.MODULE$.apply(Tuple2<Object,Tuple2<Integer,List<Object>>>.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
+
+        Graph<Tuple2<Integer,List<Object>>,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),new Tuple2<Integer,List<Object>>(0, Lists.newArrayList(1l)), StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
+                scala.reflect.ClassTag$.MODULE$.apply(Tuple2.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
         // GraphOps is an extension of Graphs, and it includes two additional class tags. From documentation:
         // "ClassTag[T] stores the erased class of a given type T , accessible via the runtimeClass field.
         // This is particularly useful for instantiating Array s whose element types are unknown at compile time."
         // TODO: What is a class tag?
-        GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
+        GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Tuple2.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
         // Now we call pregel (function?) and pass all of our needed parameters to get it running.
-        ops.pregel(Integer.MAX_VALUE,
-                        Integer.MAX_VALUE,
-                        EdgeDirection.Out(),
+        ops.pregel(new Tuple2<Integer,List<Object>>(Integer.MAX_VALUE, Lists.newArrayList()), // initialMsg
+                        Integer.MAX_VALUE,      // maxIterations
+                        EdgeDirection.Out(),    //activeDirection
                         new VProg(),
                         new sendMsg(),
                         new merge(),
-                        ClassTag$.MODULE$.apply(Integer.class))
+                        ClassTag$.MODULE$.apply(Tuple2.class))      // VD classTag
                 .vertices()
                 .toJavaRDD()
                 .foreach(v -> {
                     // similar to for loop in python, v will be each element we iterate. But in Java, we need to delcare all variables
                     // so we cast v to vertex.
-                    Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;
-                    System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+vertex._2);
+                    Tuple2<Object,Tuple2<Integer,List<Object>>> vertex = (Tuple2<Object,Tuple2<Integer,List<Object>>>)v;
+                    System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+vertex._2._2+" with cost "+vertex._2._1);
                 });
     }
 
