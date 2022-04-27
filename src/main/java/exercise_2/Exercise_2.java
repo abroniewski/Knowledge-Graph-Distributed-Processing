@@ -16,10 +16,9 @@ import scala.runtime.AbstractFunction2;
 import scala.runtime.AbstractFunction3;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+// PrintLn statements remain in comments to make it easy to follow the code if needed.
 
 public class Exercise_2 {
     // Here we will override the function called "apply" that is part of VProg. Everything inside the {} after the parameters will be
@@ -31,7 +30,7 @@ public class Exercise_2 {
             // we will compare the vertex to the incoming message and return either
             // the current vertex value OR the incoming message. We are essentially
             // replacing the current vertex value with a new one.
-            System.out.println("1. VProg: vertexID: " + vertexID + ". vertexValue: " + vertexValue + ". message: " + message);
+//            System.out.println("1. VProg: vertexID: " + vertexID + ". vertexValue: " + vertexValue + ". message: " + message);
             return Math.min(vertexValue, message);
         }
     }
@@ -42,8 +41,8 @@ public class Exercise_2 {
         // So here I apply the function EdgeTriplet and the result will be an iterable Tuple that contains the vertexID
         // that needs to be updated along with the new value.
         // Compare the attr (edgeValue) to the vertex value. If the sum of triplet._2 (source vertexValue) + attr (edgeValue)
-        // is less than triplet._2 (dest vertexValue), then we will send a message to update the vertex value with the new sum.
-        // otherwise, return (empty array)?
+        // is less than triplet._2 (dest vertexValue), then the message will be a vertex value with the new sum.
+        // otherwise, return (empty array)
         public Iterator<Tuple2<Object, Integer>> apply(EdgeTriplet<Integer, Integer> triplet) {
             Tuple2<Object,Integer> sourceVertex = triplet.toTuple()._1();
             Tuple2<Object,Integer> dstVertex = triplet.toTuple()._2();
@@ -55,17 +54,17 @@ public class Exercise_2 {
             }
 
             else if (sourceVertex._2 + edgeDistance <= dstVertex._2) {    // sourceVertex + edge distance less than dstVertex?
-                System.out.println("2. sendMsg IF: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
-                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)));
-                System.out.println("");
+//                System.out.println("2. sendMsg IF: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
+//                System.out.println("2. Return array: " + Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)));
+//                System.out.println("");
                 return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Integer>(triplet.dstId(),sourceVertex._2 + edgeDistance)).iterator()).asScala();
 
             } else {
                 // do nothing
-                System.out.println("2. sendMsg ELSE: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
-                System.out.println("2. Return array: " + new ArrayList<Tuple2<Object,Integer>>());
-                System.out.println("");
-                // why do I need to return an empty array? Is this so that the Iterator can continue "moving" through my object?
+//                System.out.println("2. sendMsg ELSE: sourceVertex._2 (" + sourceVertex._2 + ") + edgeDistance (" + edgeDistance + ") <= dstVertex._2(" + dstVertex._2 + ")");
+//                System.out.println("2. Return array: " + new ArrayList<Tuple2<Object,Integer>>());
+//                System.out.println("");
+                // TODO: why do I need to return an empty array? Is this so that the Iterator can continue "moving" through my object?
                 return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Integer>>().iterator()).asScala();
 
             }
@@ -74,14 +73,14 @@ public class Exercise_2 {
 
     private static class merge extends AbstractFunction2<Integer,Integer,Integer> implements Serializable {
         @Override
-        // if we are only taking in or comparing 2 integers, does this limit us to a graph that has a maximum of
-        // 2 incoming edges at any node? Or can we only use 2 because this is called/ used by Pregel API
-        // after every edge is compared using sendMsg?
+        // TODO: Confirm that we only compare 2 values because this is called after every edge is compared using sendMsg.
         public Integer apply(Integer o, Integer o2) {
             // if a vertex receives 2 messages, it will choose the smallest of the 2 values.
-            System.out.println("3. merge: o" + o + ". o2: " + o2 + ". return: " + Math.min(o, o2));
-            System.out.println("");
-            return Math.min(o, o2);
+//            System.out.println("3. merge: o" + o + ". o2: " + o2 + ". return: " + Math.min(o, o2));
+//            System.out.println("");
+//            return Math.min(o, o2);
+//            System.out.println("MERGE!");
+            return null;
         }
     }
 
@@ -95,6 +94,9 @@ public class Exercise_2 {
                 .put(6l, "F")
                 .build();
 
+
+        // TODO: Would it make sense to initialize to Double.PositiveInfinity instead of integer with MAX_VALUE to simplify
+        //  the sendMsg class and remove the overflow issue?
         List<Tuple2<Object,Integer>> vertices = Lists.newArrayList(
                 new Tuple2<Object,Integer>(1l,0),
                 new Tuple2<Object,Integer>(2l,Integer.MAX_VALUE),
@@ -114,8 +116,8 @@ public class Exercise_2 {
         );
         // Creating object called verticesRDD of type JavaRDD with a parameter Tuple2.
         // JavaRDD creates a distributed collection of objects, which means they can be
-        // parallelized acroos a cluster of nodes. The ctx.parallelize creates a
-        // parallelized version of the java object?
+        // parallelized across a cluster of nodes.
+        // TODO: The ctx.parallelize creates a parallelized version of the java object? and JavaRDD is scala?
         // Tuple2 is an object that contains a fixed number (2) of elements. So here we
         // have a tuple containing an object in position _1 and an integer in position _2.
         JavaRDD<Tuple2<Object,Integer>> verticesRDD = ctx.parallelize(vertices);
@@ -123,7 +125,7 @@ public class Exercise_2 {
 
         // Here we create an object "G" of type Graph. The Graph class looks like Graph[VD,ED], and here we are saying that the
         // VD (vertexes) and ED (edges) will both be of type integer. The angle brackets are used to pass a parameter as a
-        // generic (type, function?).
+        // generic type.
         // TODO: So why can't we just say Graph G = Graph.apply(...)?
         // TODO: Why do I need to use the .apply() function? Why isn't it Graph G = new Graph(parameters...)?
         // Anyway, now we have G, a Graph with vertexes and edges that are parallelized.
@@ -136,7 +138,8 @@ public class Exercise_2 {
         // TODO: What is a class tag?
         GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
-        // Now we call pregel (function?) and pass all of our needed parameters to get it running.
+        // Now we call pregel and pass all of our needed parameters to get it running.
+        // TODO: What exactly is the difference between an API and a function? they feel the same.
         ops.pregel(Integer.MAX_VALUE,
                 Integer.MAX_VALUE,
                 EdgeDirection.Out(),
@@ -146,8 +149,10 @@ public class Exercise_2 {
                 ClassTag$.MODULE$.apply(Integer.class))
             .vertices()
             .toJavaRDD()
-            .foreach(v -> {                                                 // is "v" a random variable we just defined here?
-                Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;  // now we create a variable "vertex" from each v?
+            .foreach(v -> {
+                // similar to for loop in python, v will be each element we iterate. But in Java, we need to declare all variables
+                // so we cast v to vertex.
+                Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;
                 System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+vertex._2);
             });
 	}
